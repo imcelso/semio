@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semiotic AI Translator — Mixed-Ability Co-Creation Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-text">
+      <h1>Semio</h1>
+      <p class="app-subtitle">AI-mediated visual symbol interpretation for mixed-ability co-creation</p>
+    </div>
+    <div class="header-tag">Prototype</div>
+  </header>
+
+  <main class="workspace" aria-label="Three-column workspace">
+    <!-- LEFT: Symbol Library -->
+    <section class="panel panel-left" aria-label="Symbol library">
+      <div id="library" class="library" role="list"></div>
+    </section>
+
+    <!-- CENTER: Co-creation Canvas -->
+    <section class="panel panel-center" aria-label="Co-creation canvas">
+      <div class="panel-head canvas-head">
+        <h2>Co-creation Canvas</h2>
+        <div class="canvas-actions">
+          <button id="clear-btn" class="btn btn-ghost" type="button">Clear canvas</button>
+        </div>
+      </div>
+
+      <div id="canvas" class="canvas" aria-label="Drop symbols here"></div>
+    </section>
+
+    <!-- RIGHT: AI Interpretant Panel -->
+    <aside class="panel panel-right" aria-label="AI interpretant panel">
+      <div class="ai-head">
+        <span class="ai-dot" aria-hidden="true"></span>
+        <h2>AI Interpretant</h2>
+      </div>
+
+      <div class="tag-strip" aria-label="Active symbols">
+        <span class="tag-strip-label">On canvas</span>
+        <div id="tag-list" class="tag-list"></div>
+      </div>
+
+      <div id="ai-body" class="ai-body">
+        <div class="ai-idle" id="ai-idle">
+          <p class="ai-idle-title">Waiting for input</p>
+          <p class="ai-idle-text">Place symbols on the canvas and I will interpret the intended meaning.</p>
+        </div>
+      </div>
+
+      <p class="ai-disclaimer">For demonstration only — these readings are pre-scripted effects, not a real interpretation.</p>
+    </aside>
+  </main>
+
+  <footer class="app-footer">
+    <span class="footer-note">This is a demo for illustration only. It does not use a real AI model — all responses are pre-written and shown for demonstration purposes.</span>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

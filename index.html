@@ -3,67 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Semiotic AI Translator — Mixed-Ability Co-Creation Prototype</title>
+  <title>Semio — A research prototype on AI-mediated visual symbols for mixed-ability co-creation</title>
+  <meta name="description" content="Semio is an HCI research prototype investigating how AI-mediated visual symbols could help people with intellectual and communication disabilities express intentions and co-create with non-disabled partners." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="app-header">
-    <div class="brand-text">
-      <h1>Semio</h1>
-      <p class="app-subtitle">AI-mediated visual symbol interpretation for mixed-ability co-creation</p>
-    </div>
-    <div class="header-tag">Prototype</div>
+<body class="landing">
+
+  <header class="lp-nav">
+    <a href="https://celso.cc" class="back-portfolio" aria-label="Back to portfolio">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back to portfolio
+    </a>
   </header>
 
-  <main class="workspace" aria-label="Three-column workspace">
-    <!-- LEFT: Symbol Library -->
-    <section class="panel panel-left" aria-label="Symbol library">
-      <div id="library" class="library" role="list"></div>
+  <main class="lp-main">
+
+    <!-- HERO -->
+    <section class="lp-hero">
+      <p class="lp-eyebrow">HCI · Accessibility · Co-design · Semiotics</p>
+      <h1 class="lp-title">A shared visual language for mixed-ability co-creation.</h1>
+      <p class="lp-lede">
+        Semio is a research prototype exploring how <strong>AI-mediated visual symbols</strong> could help
+        people with intellectual and communication disabilities express intentions and co-create with
+        non-disabled partners — a system to be shaped through participatory design with the communities it
+        aims to serve. AI acts as an interpreter that bridges understanding, not a voice that
+        speaks <em>for</em> anyone.
+      </p>
+      <div class="lp-hero-actions">
+        <a class="btn btn-primary lp-btn" href="app.html">Explore the interactive demo &rarr;</a>
+      </div>
     </section>
 
-    <!-- CENTER: Co-creation Canvas -->
-    <section class="panel panel-center" aria-label="Co-creation canvas">
-      <div class="panel-head canvas-head">
-        <h2>Co-creation Canvas</h2>
-        <div class="canvas-actions">
-          <button id="clear-btn" class="btn btn-ghost" type="button">Clear canvas</button>
-        </div>
+    <!-- HOW -->
+    <section class="lp-section" id="how">
+      <span class="lp-kicker">How the demo works</span>
+      <div class="lp-steps">
+        <article class="lp-step">
+          <span class="lp-step-num">1</span>
+          <h3 class="lp-step-title">Compose with symbols</h3>
+          <p class="lp-step-text">Drag shapes, colours, objects and emotions onto a shared canvas.</p>
+        </article>
+        <article class="lp-step">
+          <span class="lp-step-num">2</span>
+          <h3 class="lp-step-title">Read the interpretation</h3>
+          <p class="lp-step-text">The system proposes a possible meaning, plus alternative readings.</p>
+        </article>
+        <article class="lp-step">
+          <span class="lp-step-num">3</span>
+          <h3 class="lp-step-title">Confirm or correct</h3>
+          <p class="lp-step-text">Tap one of the suggested readings to confirm or refine the interpretation.</p>
+        </article>
       </div>
-
-      <div id="canvas" class="canvas" aria-label="Drop symbols here"></div>
     </section>
 
-    <!-- RIGHT: AI Interpretant Panel -->
-    <aside class="panel panel-right" aria-label="AI interpretant panel">
-      <div class="ai-head">
-        <span class="ai-dot" aria-hidden="true"></span>
-        <h2>AI Interpretant</h2>
-      </div>
+    <!-- NOTE -->
+    <p class="lp-note">
+      An early <strong>demonstration prototype</strong> for a research project. The readings shown are
+      <strong>pre-scripted demo text</strong> for illustration only — they carry no real semantic analysis,
+      and everything runs in your browser with no model, no server and no data collected. Best viewed on desktop.
+    </p>
 
-      <div class="tag-strip" aria-label="Active symbols">
-        <span class="tag-strip-label">On canvas</span>
-        <div id="tag-list" class="tag-list"></div>
-      </div>
-
-      <div id="ai-body" class="ai-body">
-        <div class="ai-idle" id="ai-idle">
-          <p class="ai-idle-title">Waiting for input</p>
-          <p class="ai-idle-text">Place symbols on the canvas and I will interpret the intended meaning.</p>
-        </div>
-      </div>
-
-      <p class="ai-disclaimer">For demonstration only — these readings are pre-scripted effects, not a real interpretation.</p>
-    </aside>
   </main>
 
-  <footer class="app-footer">
-    <span class="footer-note">This is a demo for illustration only. It does not use a real AI model — all responses are pre-written and shown for demonstration purposes.</span>
-  </footer>
-
-  <script src="data.js"></script>
-  <script src="app.js"></script>
 </body>
 </html>

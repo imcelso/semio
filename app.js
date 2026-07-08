@@ -232,7 +232,8 @@
   function renderIdle() {
     aiBodyEl.innerHTML =
       '<div class="ai-idle">' +
-      '<p class="ai-idle-text">Place symbols on the canvas to see the meaning here.</p>' +
+      '<p class="ai-idle-title">Waiting for symbols</p>' +
+      '<p class="ai-idle-text">Place symbols on the canvas to see possible interpretations.</p>' +
       "</div>";
   }
 

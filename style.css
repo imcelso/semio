@@ -123,8 +123,10 @@ body:not(.landing) {
 /*
  * Fully collapsed: zero layout height — workspace claims the full viewport.
  * Open/close control lives in the Canvas panel toolbar (see .header-chrome-toggle).
+ * Also keyed off html.header-is-collapsed for pre-JS paint on iPad.
  */
-.app-header.is-collapsed {
+.app-header.is-collapsed,
+html.header-is-collapsed .app-header {
   max-height: 0;
   opacity: 0;
   border-bottom-color: transparent;

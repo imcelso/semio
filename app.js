@@ -622,7 +622,7 @@
 
   /* =========================================================
    * 9. Full header hide — control sits in Canvas toolbar (not floating)
-   * Tablet / narrow: start fully hidden so workspace is taller.
+   * Default-hidden on a wide tablet range (incl. iPad landscape / Pro).
    * ========================================================= */
   function initHeaderCollapse() {
     var header = document.getElementById("app-header");
@@ -630,12 +630,21 @@
     if (!header || !toggle) return;
 
     var labelEl = toggle.querySelector(".header-chrome-label");
-    var tabletMq = window.matchMedia("(max-width: 1024px)");
+    /*
+     * Broader than 1024px so iPad landscape / Pro still match:
+     * - width ≤ 1366 (common iPad Pro landscape CSS width)
+     * - or primary coarse pointer (touch tablets / convertibles)
+     * Desktop mouse + wide screen stays expanded by default.
+     */
+    var tabletMq = window.matchMedia(
+      "(max-width: 1366px), ((pointer: coarse) and (max-width: 1600px))"
+    );
 
     function setCollapsed(on) {
       on = !!on;
       header.classList.toggle("is-collapsed", on);
       document.body.classList.toggle("header-is-collapsed", on);
+      document.documentElement.classList.toggle("header-is-collapsed", on);
       toggle.setAttribute("aria-expanded", on ? "false" : "true");
       if (labelEl) labelEl.textContent = on ? "Menu" : "Hide";
       toggle.title = on

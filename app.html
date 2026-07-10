@@ -8,6 +8,18 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <!-- Early tablet detect: hide chrome before app.js so iPad does not flash a tall header -->
+  <script>
+    (function () {
+      try {
+        if (window.matchMedia(
+          "(max-width: 1366px), ((pointer: coarse) and (max-width: 1600px))"
+        ).matches) {
+          document.documentElement.classList.add("header-is-collapsed");
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <!-- Full bar collapses to height:0; open/close lives in the Canvas toolbar (not floating). -->

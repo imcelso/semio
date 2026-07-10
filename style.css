@@ -51,19 +51,38 @@ body:not(.landing) {
   overflow: hidden;
 }
 
-/* ---------- Header ---------- */
+/* ---------- Header: can fully hide (height 0) for max canvas room ---------- */
 .app-header {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  /* animate open/close without leaving residual chrome height */
+  max-height: 120px;
+  opacity: 1;
+  transition: max-height .22s ease, opacity .18s ease, border-color .18s ease;
+}
+.app-header .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 10px 24px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
 }
-.app-header h1 { font-size: 19px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-left .brand-text { margin-left: 8px; }
-.app-subtitle { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; letter-spacing: .01em; }
+.app-header h1 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+.header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.header-left .brand-text { margin-left: 8px; min-width: 0; }
+.app-subtitle {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  letter-spacing: .01em;
+}
 .header-tag {
   display: inline-flex;
   align-items: center;
@@ -78,7 +97,6 @@ body:not(.landing) {
   line-height: 1;
   user-select: none;
 }
-/* Inline stroke icon — matches house / document chrome */
 .header-tag-icon {
   display: block;
   width: 18px;
@@ -86,7 +104,12 @@ body:not(.landing) {
   flex-shrink: 0;
   color: inherit;
 }
-.header-right { display: flex; align-items: center; gap: 14px; }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .header-back {
   font-size: 12px;
   font-weight: 600;
@@ -96,6 +119,43 @@ body:not(.landing) {
   transition: color .12s ease;
 }
 .header-back:hover { color: var(--accent); }
+
+/*
+ * Fully collapsed: zero layout height — workspace claims the full viewport.
+ * Open/close control lives in the Canvas panel toolbar (see .header-chrome-toggle).
+ */
+.app-header.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  border-bottom-color: transparent;
+  pointer-events: none;
+}
+
+/* Canvas toolbar: natural home for Menu / Hide chrome */
+.canvas-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.header-chrome-toggle {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  padding: 0 12px;
+  border-radius: 999px;
+}
+.header-chrome-chevron {
+  flex-shrink: 0;
+  transition: transform .2s ease;
+}
+/* Expanded header: chevron up = “hide bar” */
+body:not(.header-is-collapsed) .header-chrome-chevron {
+  transform: rotate(180deg);
+}
+/* Collapsed: chevron down = “show menu” */
+body.header-is-collapsed .header-chrome-chevron {
+  transform: rotate(0deg);
+}
 
 /* ---------- Workspace (3 columns) ---------- */
 .workspace {
@@ -833,31 +893,30 @@ body.is-dragging-token .back-portfolio {
 }
 
 /* =============================================================
- * Landing page — fluid photo/copy blend (viewport-scaled)
- * Photo + white wash both use clamp/vw so wide screens
- * get a longer, softer transition, not a hard split.
+ * Landing page — fixed photo + scrolling copy (restored approach)
+ * Extra tall white buffers above/below text so rubber-band drag
+ * never reveals a hard “edge” of the copy block on tablets.
  * ============================================================= */
 body.landing {
   min-height: 100vh;
   min-height: 100dvh;
   background: #fff;
   overflow-x: hidden;
+  /* soft clamp of whole-page bounce where supported */
+  overscroll-behavior-y: none;
 }
 
 .lp-shell {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
-  /* allow tall content to scroll — never clip the footer note */
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
-/*
- * Photo: always edge-to-edge in its frame (top + bottom).
- * Desktop / tablet landscape: fixed to the viewport so it stays
- * full-height while copy scrolls. Horizontal mask only (no bottom fade).
- */
+/* Fixed full-height photo on the right */
 .lp-visual {
   position: fixed;
   top: 0;
@@ -865,13 +924,11 @@ body.landing {
   bottom: 0;
   height: 100vh;
   height: 100dvh;
-  /* small screens ~58%, full desktop ~70%+ */
   width: clamp(56%, 18rem + 48vw, 74%);
   z-index: 0;
   overflow: hidden;
   background: #cfd6e0;
   pointer-events: none;
-  /* soft LEFT edge only — never fade the bottom (that caused a mid-frame edge) */
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -900,43 +957,54 @@ body.landing {
   max-width: none;
   object-fit: cover;
   object-position: 50% 40%;
-  /* no transform scale — scale() left gray strips at top/bottom on some tablets */
   transform: none;
 }
 
-/* ----- Copy: solid white under full text column, then soft dissolve ----- */
+/*
+ * Copy column: white wash + LARGE vertical buffers.
+ * When the user pulls the page up/down, they still stay on white —
+ * the real top/bottom edge of the block is far outside the viewport.
+ */
 .lp-copy {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
-  min-height: 100vh;
   min-height: 100dvh;
-  /*
-   * Solid white must cover at least the text max-width (~36rem + padding),
-   * otherwise the long disclaimer fades into the photo mid-sentence.
-   */
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding-top: 28px;
+  padding-bottom: 28px;
+  padding-right: clamp(8px, 4vw, 48px);
   background: linear-gradient(
     90deg,
     #ffffff 0,
     #ffffff max(36rem, 42vw),
-    rgba(255, 255, 255, 0.96) max(38rem, 48vw),
-    rgba(255, 255, 255, 0.82) max(42rem, 54vw),
-    rgba(255, 255, 255, 0.5) max(48rem, 62vw),
-    rgba(255, 255, 255, 0.2) max(54rem, 70vw),
-    rgba(255, 255, 255, 0.06) max(60rem, 78vw),
-    transparent max(66rem, 86vw)
+    rgba(255, 255, 255, 0.97) max(38rem, 48vw),
+    rgba(255, 255, 255, 0.88) max(42rem, 54vw),
+    rgba(255, 255, 255, 0.62) max(48rem, 62vw),
+    rgba(255, 255, 255, 0.32) max(54rem, 70vw),
+    rgba(255, 255, 255, 0.12) max(60rem, 78vw),
+    rgba(255, 255, 255, 0.03) max(66rem, 86vw),
+    transparent max(72rem, 94vw)
   );
-  padding-right: clamp(8px, 4vw, 48px);
-  box-sizing: border-box;
+  /*
+   * Tall white runways above/below (same width as this column).
+   * Rubber-band drag stays on white — no hard “panel edge” in view.
+   * Unlike padding-top: 40vh, first paint still shows content centered.
+   */
+  box-shadow:
+    0 -70vh 0 0 #ffffff,
+    0 70vh 0 0 #ffffff;
 }
 
 .lp-nav {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 14px clamp(20px, 3vw, 36px) 0;
+  padding: 0 clamp(20px, 3vw, 36px);
   background: transparent;
   border: none;
 }
@@ -948,15 +1016,13 @@ body.landing {
   justify-content: center;
   gap: 28px;
   width: 100%;
-  /* fixed rem cap so disclaimer always wraps inside the solid-white zone */
   max-width: 36rem;
   margin: 0;
-  padding: 28px clamp(16px, 2.5vw, 28px) 40px clamp(20px, 3vw, 36px);
+  padding: 20px clamp(16px, 2.5vw, 28px) 28px clamp(20px, 3vw, 36px);
   box-sizing: border-box;
   min-width: 0;
 }
 
-/* Ultra-wide: photo wider; keep solid white under the same text width */
 @media (min-width: 1400px) {
   .lp-visual {
     width: clamp(64%, 20rem + 50vw, 78%);
@@ -969,24 +1035,19 @@ body.landing {
       90deg,
       #ffffff 0,
       #ffffff max(38rem, 36vw),
-      rgba(255, 255, 255, 0.95) max(42rem, 44vw),
-      rgba(255, 255, 255, 0.7) max(48rem, 54vw),
-      rgba(255, 255, 255, 0.35) max(54rem, 62vw),
-      rgba(255, 255, 255, 0.1) max(60rem, 70vw),
-      transparent max(68rem, 80vw)
+      rgba(255, 255, 255, 0.96) max(42rem, 44vw),
+      rgba(255, 255, 255, 0.78) max(48rem, 54vw),
+      rgba(255, 255, 255, 0.45) max(54rem, 62vw),
+      rgba(255, 255, 255, 0.18) max(60rem, 70vw),
+      rgba(255, 255, 255, 0.05) max(66rem, 78vw),
+      transparent max(74rem, 88vw)
     );
-  }
-  .lp-main {
-    max-width: 36rem;
   }
 }
 
-/* Mid desktop / tablet landscape: side-by-side, still full viewport height */
 @media (min-width: 961px) and (max-width: 1399px) {
   .lp-visual {
     width: clamp(58%, 12rem + 46vw, 70%);
-    height: 100vh;
-    height: 100dvh;
   }
   .lp-photo {
     object-position: 50% 42%;
@@ -1038,7 +1099,6 @@ body.landing {
 }
 .lp-btn svg { flex-shrink: 0; }
 
-/* Steps: compact vertical list (fits beside portrait photo) */
 .lp-section { text-align: left; }
 .lp-kicker {
   display: block;
@@ -1104,16 +1164,11 @@ body.landing {
   font-size: 12px;
   line-height: 1.55;
   color: var(--ink-soft);
-  /* force wrap; never clip mid-sentence */
   white-space: normal;
   overflow-wrap: break-word;
 }
 
-/*
- * Narrow / tablet portrait: photo on top as a full-bleed band.
- * Image absolute-fills the band (no bottom mask line). Soft join via
- * overlay gradient, not by making the photo transparent mid-frame.
- */
+/* Portrait: stacked — photo band + copy, still with soft buffers */
 @media (max-width: 960px) {
   .lp-shell {
     display: flex;
@@ -1128,18 +1183,14 @@ body.landing {
     bottom: auto;
     order: -1;
     width: 100%;
-    /* prefer dynamic viewport units on iPad Safari (dvh last wins if supported) */
     height: min(52vh, 480px);
     height: min(52dvh, 480px);
     min-height: 280px;
-    max-height: none;
     flex-shrink: 0;
     pointer-events: auto;
-    /* reset side mask — full opacity to all edges of the band */
     -webkit-mask-image: none;
     mask-image: none;
   }
-  /* soft blend painted ON TOP of the photo, photo still covers the box */
   .lp-visual::after {
     content: "";
     position: absolute;
@@ -1159,47 +1210,43 @@ body.landing {
   .lp-photo {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
     object-position: 50% 35%;
-    transform: none;
   }
   .lp-copy {
-    position: relative;
-    z-index: 1;
-    min-height: auto;
+    min-height: 0;
+    padding-top: 12px;
+    padding-bottom: 48px;
     padding-right: 0;
     margin-top: 0;
-    padding-top: 0;
     background: #ffffff;
+    box-shadow: 0 50vh 0 0 #ffffff;
   }
   .lp-main {
     max-width: 640px;
     margin: 0 auto;
-    padding: 16px 22px 32px;
+    padding: 12px 22px 32px;
+    justify-content: flex-start;
   }
-  .lp-nav { padding: 12px 22px 0; }
+  .lp-nav {
+    padding: 12px 22px 0;
+  }
 }
 
-/* Short landscape tablets: keep side-by-side full-height photo */
 @media (max-width: 960px) and (orientation: landscape) and (min-height: 400px) {
   .lp-shell {
     display: block;
     position: relative;
     min-height: 100dvh;
-    min-height: 100vh;
+    overflow-y: auto;
   }
   .lp-visual {
     position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
-    left: auto;
     order: 0;
     width: min(52%, 420px);
     height: 100dvh;
-    height: 100vh;
     min-height: 0;
     -webkit-mask-image: linear-gradient(
       90deg,
@@ -1219,7 +1266,8 @@ body.landing {
   .lp-visual::after { display: none; }
   .lp-copy {
     min-height: 100dvh;
-    min-height: 100vh;
+    padding-top: 20px;
+    padding-bottom: 20px;
     background: linear-gradient(
       90deg,
       #ffffff 0,
@@ -1228,10 +1276,13 @@ body.landing {
       rgba(255, 255, 255, 0.4) min(72%, 34rem),
       transparent 88%
     );
+    box-shadow:
+      0 -50vh 0 0 #ffffff,
+      0 50vh 0 0 #ffffff;
   }
   .lp-main {
     max-width: min(28rem, 48vw);
-    padding: 20px 20px 28px 24px;
+    padding: 16px 20px 24px 24px;
   }
 }
 
@@ -1239,6 +1290,7 @@ body.landing {
   .lp-title { font-size: clamp(24px, 7vw, 32px); }
   .lp-main { gap: 22px; }
 }
+
 
 /* =============================================================
  * Back / nav chrome — same language as prototype .btn-ghost

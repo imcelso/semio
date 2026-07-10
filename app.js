@@ -620,7 +620,51 @@
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  /* =========================================================
+   * 9. Full header hide — control sits in Canvas toolbar (not floating)
+   * Tablet / narrow: start fully hidden so workspace is taller.
+   * ========================================================= */
+  function initHeaderCollapse() {
+    var header = document.getElementById("app-header");
+    var toggle = document.getElementById("header-chrome-toggle");
+    if (!header || !toggle) return;
+
+    var labelEl = toggle.querySelector(".header-chrome-label");
+    var tabletMq = window.matchMedia("(max-width: 1024px)");
+
+    function setCollapsed(on) {
+      on = !!on;
+      header.classList.toggle("is-collapsed", on);
+      document.body.classList.toggle("header-is-collapsed", on);
+      toggle.setAttribute("aria-expanded", on ? "false" : "true");
+      if (labelEl) labelEl.textContent = on ? "Menu" : "Hide";
+      toggle.title = on
+        ? "Show top bar (portfolio, about)"
+        : "Hide top bar for more canvas room";
+      toggle.setAttribute(
+        "aria-label",
+        on ? "Show top bar" : "Hide top bar"
+      );
+    }
+
+    function applyDefaultForViewport() {
+      setCollapsed(tabletMq.matches);
+    }
+
+    toggle.addEventListener("click", function () {
+      setCollapsed(!header.classList.contains("is-collapsed"));
+    });
+
+    applyDefaultForViewport();
+    if (tabletMq.addEventListener) {
+      tabletMq.addEventListener("change", applyDefaultForViewport);
+    } else if (tabletMq.addListener) {
+      tabletMq.addListener(applyDefaultForViewport);
+    }
+  }
+
   /* ---------- init ---------- */
   renderLibrary();
   renderTags();
+  initHeaderCollapse();
 })();

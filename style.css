@@ -1084,9 +1084,10 @@ body.landing {
 .lp-hero-actions {
   margin-top: 22px;
   display: flex;
+  align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px 16px;
 }
 .lp-btn {
   font-size: 15px;
@@ -1100,6 +1101,26 @@ body.landing {
   gap: 8px;
 }
 .lp-btn svg { flex-shrink: 0; }
+
+/* After primary CTA: assets/tablet.svg + label, same blue as the button */
+.lp-tablet-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--accent);
+  line-height: 1;
+  user-select: none;
+}
+.lp-tablet-ready-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: inherit; /* filled paths use currentColor → button blue */
+}
 
 .lp-section { text-align: left; }
 .lp-kicker {

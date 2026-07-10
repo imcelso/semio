@@ -25,6 +25,14 @@
   let tokens = [];
   let uidSeq = 0;
   let thinkTimer = null;
+  let selectedUid = null;
+  var DRAG_THRESHOLD = 6;
+  var TOKEN_FALLBACK = 58;
+
+  function tokenExtent(el) {
+    if (el && el.offsetWidth) return el.offsetWidth;
+    return TOKEN_FALLBACK;
+  }
 
   /* =========================================================
    * 1. Render the symbol library (left column)
@@ -85,24 +93,27 @@
     const id = e.dataTransfer.getData("text/symbol-id");
     if (!id) return;
     const rect = canvasEl.getBoundingClientRect();
-    addToken(id, e.clientX - rect.left - 29, e.clientY - rect.top - 29);
+    var half = TOKEN_FALLBACK / 2;
+    addToken(id, e.clientX - rect.left - half, e.clientY - rect.top - half);
   });
 
   /* =========================================================
    * 3. Add / remove tokens
+   * Drag outside the canvas to destroy (no × button).
    * ========================================================= */
   function addToken(symbolId, x, y) {
     const sym = SYMBOL_INDEX[symbolId];
     if (!sym) return;
 
     const rect = canvasEl.getBoundingClientRect();
+    const half = TOKEN_FALLBACK / 2;
     if (typeof x !== "number" || typeof y !== "number") {
       // click-to-place: scatter near center with small jitter
-      x = rect.width / 2 - 29 + (Math.random() * 120 - 60);
-      y = rect.height / 2 - 29 + (Math.random() * 120 - 60);
+      x = rect.width / 2 - half + (Math.random() * 120 - 60);
+      y = rect.height / 2 - half + (Math.random() * 120 - 60);
     }
-    x = clamp(x, 0, rect.width - 58);
-    y = clamp(y, 0, rect.height - 58);
+    x = clamp(x, 0, Math.max(0, rect.width - TOKEN_FALLBACK));
+    y = clamp(y, 0, Math.max(0, rect.height - TOKEN_FALLBACK));
 
     const uid = "tok_" + (++uidSeq);
     const el = document.createElement("div");
@@ -110,19 +121,22 @@
     el.style.left = x + "px";
     el.style.top = y + "px";
     el.dataset.uid = uid;
-    el.innerHTML =
-      sym.emoji +
-      '<button class="token-remove" aria-label="Remove" title="Remove">×</button>';
-
-    el.querySelector(".token-remove").addEventListener("click", function (ev) {
-      ev.stopPropagation();
-      removeToken(uid);
-    });
+    el.setAttribute("role", "img");
+    el.setAttribute("aria-label", sym.label + " — drag outside canvas to remove");
+    el.textContent = sym.emoji;
 
     enableTokenDrag(el, uid);
     canvasEl.appendChild(el);
 
+    // Re-clamp with measured size after layout
+    var size = tokenExtent(el);
+    x = clamp(x, 0, Math.max(0, rect.width - size));
+    y = clamp(y, 0, Math.max(0, rect.height - size));
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+
     tokens.push({ uid: uid, id: symbolId, x: x, y: y, el: el });
+    selectToken(uid);
     onCanvasChange();
   }
 
@@ -131,39 +145,148 @@
     if (i === -1) return;
     tokens[i].el.remove();
     tokens.splice(i, 1);
+    if (selectedUid === uid) selectedUid = null;
     onCanvasChange();
   }
 
+  /** Play destroy animation, then remove from state. */
+  function destroyToken(uid) {
+    const t = tokens.find(function (tok) { return tok.uid === uid; });
+    if (!t) return;
+    var el = t.el;
+    if (el.classList.contains("is-destroying")) return;
+
+    el.classList.remove("is-selected", "will-delete", "is-dragging");
+    el.classList.add("is-destroying");
+    el.style.zIndex = "60";
+    el.style.pointerEvents = "none";
+
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      el.removeEventListener("animationend", finish);
+      removeToken(uid);
+      canvasEl.classList.remove("is-dragging-token", "is-delete-zone");
+      document.body.classList.remove("is-dragging-token");
+      var panel = canvasEl.closest(".panel-center");
+      if (panel) panel.classList.remove("is-dragging-token");
+    }
+    el.addEventListener("animationend", finish);
+    // Fallback if animationend is skipped
+    setTimeout(finish, 380);
+  }
+
+  function selectToken(uid) {
+    selectedUid = uid;
+    tokens.forEach(function (t) {
+      t.el.classList.toggle("is-selected", t.uid === uid && !t.el.classList.contains("is-destroying"));
+    });
+  }
+
+  function clearSelection() {
+    selectedUid = null;
+    tokens.forEach(function (t) {
+      t.el.classList.remove("is-selected");
+    });
+  }
+
+  /** True when token centre is outside the canvas pad (slight inset so edge is safer). */
+  function isOutsideCanvas(clientX, clientY, pad) {
+    pad = typeof pad === "number" ? pad : 4;
+    var rect = canvasEl.getBoundingClientRect();
+    return (
+      clientX < rect.left + pad ||
+      clientX > rect.right - pad ||
+      clientY < rect.top + pad ||
+      clientY > rect.bottom - pad
+    );
+  }
+
+  canvasEl.addEventListener("pointerdown", function (e) {
+    if (e.target === canvasEl || e.target.id === "canvas-hint" ||
+        (e.target.closest && e.target.closest(".canvas-hint"))) {
+      clearSelection();
+    }
+  });
+
   /* =========================================================
-   * 4. Reposition tokens inside the canvas (pointer drag)
+   * 4. Reposition tokens; drag outside canvas to destroy
    * ========================================================= */
   function enableTokenDrag(el, uid) {
-    let startX, startY, origX, origY, dragging = false;
+    let startX, startY, origX, origY, dragging = false, moved = false;
 
     el.addEventListener("pointerdown", function (e) {
-      if (e.target.classList.contains("token-remove")) return;
+      if (el.classList.contains("is-destroying")) return;
+      selectToken(uid);
       dragging = true;
+      moved = false;
       el.setPointerCapture(e.pointerId);
-      el.style.zIndex = 50;
+      el.classList.add("is-dragging");
+      el.style.zIndex = "50";
       startX = e.clientX; startY = e.clientY;
       origX = parseFloat(el.style.left); origY = parseFloat(el.style.top);
     });
+
     el.addEventListener("pointermove", function (e) {
-      if (!dragging) return;
-      const rect = canvasEl.getBoundingClientRect();
-      let nx = clamp(origX + (e.clientX - startX), 0, rect.width - 58);
-      let ny = clamp(origY + (e.clientY - startY), 0, rect.height - 58);
+      if (!dragging || el.classList.contains("is-destroying")) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      moved = true;
+
+      canvasEl.classList.add("is-dragging-token");
+      document.body.classList.add("is-dragging-token");
+      var panel = canvasEl.closest(".panel-center");
+      if (panel) panel.classList.add("is-dragging-token");
+
+      // Allow free position (including outside) so the symbol can leave the frame
+      var nx = origX + dx;
+      var ny = origY + dy;
       el.style.left = nx + "px";
       el.style.top = ny + "px";
-      const t = tokens.find(function (t) { return t.uid === uid; });
+
+      var outside = isOutsideCanvas(e.clientX, e.clientY);
+      el.classList.toggle("will-delete", outside);
+      canvasEl.classList.toggle("is-delete-zone", outside);
+
+      const t = tokens.find(function (tok) { return tok.uid === uid; });
       if (t) { t.x = nx; t.y = ny; }
     });
+
     function endDrag(e) {
       if (!dragging) return;
       dragging = false;
-      el.style.zIndex = "";
+
       try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+
+      canvasEl.classList.remove("is-dragging-token", "is-delete-zone");
+      document.body.classList.remove("is-dragging-token");
+      var panel = canvasEl.closest(".panel-center");
+      if (panel) panel.classList.remove("is-dragging-token");
+      el.classList.remove("is-dragging");
+
+      if (el.classList.contains("is-destroying")) return;
+
+      // Only destroy if user actually dragged (not a pure tap) and released outside
+      if (moved && isOutsideCanvas(e.clientX, e.clientY)) {
+        destroyToken(uid);
+        return;
+      }
+
+      // Snap back inside canvas bounds
+      el.classList.remove("will-delete");
+      var rect = canvasEl.getBoundingClientRect();
+      var size = tokenExtent(el);
+      var nx = clamp(parseFloat(el.style.left) || 0, 0, Math.max(0, rect.width - size));
+      var ny = clamp(parseFloat(el.style.top) || 0, 0, Math.max(0, rect.height - size));
+      el.style.left = nx + "px";
+      el.style.top = ny + "px";
+      el.style.zIndex = "";
+      const t = tokens.find(function (tok) { return tok.uid === uid; });
+      if (t) { t.x = nx; t.y = ny; }
     }
+
     el.addEventListener("pointerup", endDrag);
     el.addEventListener("pointercancel", endDrag);
   }
@@ -197,10 +320,28 @@
   }
 
   /* =========================================================
-   * 6. Tiered reading — count-based, no matching
+   * 6–7. Tiered reading + confirm/correct loop (demo surface only)
+   * propose → Yes → agreed | Not quite → correct → pick/none → agreed/open
+   * Canvas change resets; nothing is stored or “learned”.
    * ========================================================= */
+  // phase: idle | propose | correct | agreed | open
+  var loop = {
+    phase: "idle",
+    main: "",
+    options: [],
+    agreedText: ""
+  };
+
+  function resetLoop() {
+    loop.phase = "idle";
+    loop.main = "";
+    loop.options = [];
+    loop.agreedText = "";
+  }
+
   function runTieredReading() {
     if (thinkTimer) clearTimeout(thinkTimer);
+    resetLoop();
 
     if (tokens.length === 0) {
       renderIdle();
@@ -211,29 +352,31 @@
 
     var delay = 700 + Math.random() * 500;
     thinkTimer = setTimeout(function () {
+      var reading;
       if (tokens.length === 1) {
         var sym = SYMBOL_INDEX[tokens[0].id];
-        if (sym && sym.reading) {
-          renderResult({ main: sym.reading, options: [] });
-        } else {
-          renderResult(TIERED_READINGS[1]);
-        }
+        reading = (sym && sym.reading)
+          ? { main: sym.reading, options: [] }
+          : TIERED_READINGS[1];
       } else {
         var idx = Math.min(tokens.length, TIERED_READINGS.length - 1);
-        var reading = TIERED_READINGS[idx];
-        if (reading) renderResult(reading);
+        reading = TIERED_READINGS[idx];
       }
+      if (!reading) return;
+      loop.phase = "propose";
+      loop.main = reading.main;
+      loop.options = (reading.options || []).slice(0, 3);
+      loop.agreedText = "";
+      renderLoop();
     }, delay);
   }
 
-  /* =========================================================
-   * 7. Right-panel renderers
-   * ========================================================= */
   function renderIdle() {
+    resetLoop();
     aiBodyEl.innerHTML =
       '<div class="ai-idle">' +
       '<p class="ai-idle-title">Waiting for symbols</p>' +
-      '<p class="ai-idle-text">Place symbols on the canvas to see possible interpretations.</p>' +
+      '<p class="ai-idle-text">Tap symbols on the left to place them on the canvas and see possible interpretations.</p>' +
       "</div>";
   }
 
@@ -244,12 +387,50 @@
       "</div>";
   }
 
-  // result shape: { main: string, options: string[] }
-  function renderResult(result) {
-    const opts = (result.options || []).slice(0, 3);
+  function renderLoop() {
+    if (loop.phase === "propose") {
+      renderPropose();
+    } else if (loop.phase === "correct") {
+      renderCorrect();
+    } else if (loop.phase === "agreed") {
+      renderAgreed();
+    } else if (loop.phase === "open") {
+      renderOpen();
+    }
+  }
 
-    let optsHtml = "";
-    opts.forEach(function (opt, i) {
+  function renderPropose() {
+    aiBodyEl.innerHTML =
+      '<div class="ai-result">' +
+        '<p class="ai-phase-label">Possible reading</p>' +
+        '<p class="translation">' + escapeHtml(loop.main) + "</p>" +
+        '<div class="confirm-block">' +
+          '<p class="confirm-q">Does this sound right?</p>' +
+          '<div class="confirm-actions">' +
+            '<button type="button" class="btn-confirm btn-yes" id="btn-yes">Yes, this</button>' +
+            '<button type="button" class="btn-confirm btn-no" id="btn-no">Not quite</button>' +
+          "</div>" +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("btn-yes").addEventListener("click", function () {
+      loop.phase = "agreed";
+      loop.agreedText = loop.main;
+      renderLoop();
+    });
+    document.getElementById("btn-no").addEventListener("click", function () {
+      if (loop.options.length > 0) {
+        loop.phase = "correct";
+      } else {
+        loop.phase = "open";
+      }
+      renderLoop();
+    });
+  }
+
+  function renderCorrect() {
+    var optsHtml = "";
+    loop.options.forEach(function (opt, i) {
       optsHtml +=
         '<button type="button" class="option" data-i="' + i + '">' +
           '<span class="option-tick" aria-hidden="true"></span>' +
@@ -257,33 +438,59 @@
         "</button>";
     });
 
-    const secondary = opts.length
-      ? '<div class="options-block">' +
-          '<p class="options-lead">Which one is closer? Tap to confirm and help me learn.</p>' +
-          '<div class="options">' + optsHtml + "</div>" +
-        "</div>"
-      : "";
-
     aiBodyEl.innerHTML =
       '<div class="ai-result">' +
-        '<p class="translation">' + escapeHtml(result.main) + "</p>" +
-        secondary +
+        '<p class="ai-phase-label">Earlier suggestion</p>' +
+        '<p class="translation translation-dim">' + escapeHtml(loop.main) + "</p>" +
+        '<div class="options-block">' +
+          '<p class="options-lead">Which is closer?</p>' +
+          '<div class="options">' + optsHtml + "</div>" +
+          '<button type="button" class="btn-confirm btn-none" id="btn-none">None of these</button>' +
+        "</div>" +
       "</div>";
 
-    // tap-to-confirm: highlight the chosen option (simulated learning)
-    const buttons = aiBodyEl.querySelectorAll(".option");
-    buttons.forEach(function (btn) {
+    aiBodyEl.querySelectorAll(".option").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        const already = btn.classList.contains("is-chosen");
-        buttons.forEach(function (b) { b.classList.remove("is-chosen"); });
-        const lead = aiBodyEl.querySelector(".options-lead");
-        if (already) {
-          if (lead) lead.textContent = "Which one is closer? Tap to confirm and help me learn.";
-          return;
-        }
-        btn.classList.add("is-chosen");
-        if (lead) lead.textContent = "Got it — I'll remember this reading.";
+        var i = parseInt(btn.getAttribute("data-i"), 10);
+        loop.phase = "agreed";
+        loop.agreedText = loop.options[i] || loop.main;
+        renderLoop();
       });
+    });
+    document.getElementById("btn-none").addEventListener("click", function () {
+      loop.phase = "open";
+      renderLoop();
+    });
+  }
+
+  function renderAgreed() {
+    aiBodyEl.innerHTML =
+      '<div class="ai-result">' +
+        '<p class="ai-phase-label ai-phase-agreed">Agreed reading</p>' +
+        '<p class="translation">' + escapeHtml(loop.agreedText) + "</p>" +
+        '<p class="ai-note">For this canvas only — a demo of shared understanding, not saved learning.</p>' +
+        '<button type="button" class="btn-confirm btn-revise" id="btn-revise">Revise</button>' +
+      "</div>";
+
+    document.getElementById("btn-revise").addEventListener("click", function () {
+      loop.phase = "propose";
+      loop.agreedText = "";
+      renderLoop();
+    });
+  }
+
+  function renderOpen() {
+    aiBodyEl.innerHTML =
+      '<div class="ai-result">' +
+        '<p class="ai-phase-label ai-phase-open">Not agreed yet</p>' +
+        '<p class="translation translation-open">None of these fit. Meaning stays with you for now.</p>' +
+        '<p class="ai-note">Try rearranging symbols, or tap Revise to see the suggestion again.</p>' +
+        '<button type="button" class="btn-confirm btn-revise" id="btn-revise">Revise</button>' +
+      "</div>";
+
+    document.getElementById("btn-revise").addEventListener("click", function () {
+      loop.phase = "propose";
+      renderLoop();
     });
   }
 
@@ -293,6 +500,7 @@
   clearBtn.addEventListener("click", function () {
     tokens.forEach(function (t) { t.el.remove(); });
     tokens = [];
+    selectedUid = null;
     onCanvasChange();
   });
 

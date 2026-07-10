@@ -820,7 +820,9 @@ body.landing {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow: hidden;
+  /* allow tall content to scroll — never clip the footer note */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ----- Photo: grows with viewport; soft left edge via mask ----- */
@@ -867,7 +869,7 @@ body.landing {
   will-change: transform;
 }
 
-/* ----- Copy: opaque only where type lives; long vw-based dissolve ----- */
+/* ----- Copy: solid white under full text column, then soft dissolve ----- */
 .lp-copy {
   position: relative;
   z-index: 1;
@@ -877,22 +879,22 @@ body.landing {
   min-height: 100vh;
   min-height: 100dvh;
   /*
-   * Stops use clamp(px, vw, px) so the blend band widens on large monitors
-   * instead of sitting at fixed % (which felt like a hard split at 100%).
+   * Solid white must cover at least the text max-width (~36rem + padding),
+   * otherwise the long disclaimer fades into the photo mid-sentence.
    */
   background: linear-gradient(
     90deg,
     #ffffff 0,
-    #ffffff clamp(17rem, 32vw, 28rem),
-    rgba(255, 255, 255, 0.97) clamp(19rem, 38vw, 34rem),
-    rgba(255, 255, 255, 0.88) clamp(22rem, 44vw, 40rem),
-    rgba(255, 255, 255, 0.62) clamp(26rem, 52vw, 48rem),
-    rgba(255, 255, 255, 0.32) clamp(30rem, 60vw, 56rem),
-    rgba(255, 255, 255, 0.12) clamp(34rem, 68vw, 64rem),
-    rgba(255, 255, 255, 0.03) clamp(38rem, 76vw, 72rem),
-    transparent clamp(42rem, 84vw, 82rem)
+    #ffffff max(36rem, 42vw),
+    rgba(255, 255, 255, 0.96) max(38rem, 48vw),
+    rgba(255, 255, 255, 0.82) max(42rem, 54vw),
+    rgba(255, 255, 255, 0.5) max(48rem, 62vw),
+    rgba(255, 255, 255, 0.2) max(54rem, 70vw),
+    rgba(255, 255, 255, 0.06) max(60rem, 78vw),
+    transparent max(66rem, 86vw)
   );
   padding-right: clamp(8px, 4vw, 48px);
+  box-sizing: border-box;
 }
 
 .lp-nav {
@@ -911,13 +913,15 @@ body.landing {
   justify-content: center;
   gap: 28px;
   width: 100%;
-  /* type column stays readable; blend happens to the right of this */
-  max-width: min(32rem, 46vw);
+  /* fixed rem cap so disclaimer always wraps inside the solid-white zone */
+  max-width: 36rem;
   margin: 0;
-  padding: 28px clamp(16px, 2.5vw, 28px) 36px clamp(20px, 3vw, 36px);
+  padding: 28px clamp(16px, 2.5vw, 28px) 40px clamp(20px, 3vw, 36px);
+  box-sizing: border-box;
+  min-width: 0;
 }
 
-/* Ultra-wide: push photo further left under copy, longer dissolve */
+/* Ultra-wide: photo wider; keep solid white under the same text width */
 @media (min-width: 1400px) {
   .lp-visual {
     width: clamp(64%, 20rem + 50vw, 78%);
@@ -930,17 +934,16 @@ body.landing {
     background: linear-gradient(
       90deg,
       #ffffff 0,
-      #ffffff clamp(18rem, 28vw, 30rem),
-      rgba(255, 255, 255, 0.96) clamp(22rem, 36vw, 38rem),
-      rgba(255, 255, 255, 0.78) clamp(28rem, 46vw, 48rem),
-      rgba(255, 255, 255, 0.45) clamp(34rem, 56vw, 58rem),
-      rgba(255, 255, 255, 0.18) clamp(40rem, 66vw, 68rem),
-      rgba(255, 255, 255, 0.05) clamp(46rem, 74vw, 78rem),
-      transparent clamp(52rem, 82vw, 90rem)
+      #ffffff max(38rem, 36vw),
+      rgba(255, 255, 255, 0.95) max(42rem, 44vw),
+      rgba(255, 255, 255, 0.7) max(48rem, 54vw),
+      rgba(255, 255, 255, 0.35) max(54rem, 62vw),
+      rgba(255, 255, 255, 0.1) max(60rem, 70vw),
+      transparent max(68rem, 80vw)
     );
   }
   .lp-main {
-    max-width: min(34rem, 38vw);
+    max-width: 36rem;
   }
 }
 
@@ -1057,12 +1060,17 @@ body.landing {
 }
 
 .lp-note {
-  max-width: none;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
   margin: 0;
   text-align: left;
   font-size: 12px;
   line-height: 1.55;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
+  /* force wrap; never clip mid-sentence */
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* Narrow: photo on top, soft bottom wash into copy */

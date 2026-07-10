@@ -870,28 +870,153 @@ body.is-dragging-token .back-portfolio {
   }
 }
 
-/* ---------- Narrow / phone stack ---------- */
+/* ---------- Mobile gate (phone breakpoint — same app.html) ---------- */
+.mobile-gate {
+  display: none;
+}
+
 @media (max-width: 768px) {
-  body:not(.landing) {
+  /* Hide prototype chrome; show recommendation card instead */
+  body:not(.landing):not(.mobile-gate-dismissed) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+    background: var(--bg);
+  }
+  body:not(.landing):not(.mobile-gate-dismissed) .app-header,
+  body:not(.landing):not(.mobile-gate-dismissed) .workspace,
+  body:not(.landing):not(.mobile-gate-dismissed) .app-footer {
+    display: none !important;
+  }
+  body:not(.landing):not(.mobile-gate-dismissed) .mobile-gate {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: 28px 20px 36px;
+  }
+
+  .mobile-gate-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px 22px 24px;
+    text-align: center;
+  }
+  .mobile-gate-kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  .mobile-gate-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.2;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+  .mobile-gate-text {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0 0 22px;
+  }
+  .mobile-gate-devices {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin: 0 0 24px;
+  }
+  .mobile-gate-device {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 96px;
+    padding: 14px 12px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .mobile-gate-device-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .mobile-gate-device-icon svg {
+    display: block;
+    width: 26px;
+    height: 26px;
+  }
+  .mobile-gate-device-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .mobile-gate-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mobile-gate-primary {
+    width: 100%;
+    min-height: var(--touch-min);
+    border-radius: 999px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .mobile-gate-anyway {
+    width: 100%;
+    min-height: var(--touch-min);
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  /* If user dismisses the gate, fall back to stacked (imperfect) layout */
+  body.mobile-gate-dismissed:not(.landing) {
     height: auto;
     min-height: 100vh;
     overflow: auto;
   }
-  .workspace {
+  body.mobile-gate-dismissed .mobile-gate {
+    display: none !important;
+  }
+  body.mobile-gate-dismissed .workspace {
     grid-template-columns: 1fr;
     grid-auto-rows: minmax(220px, auto);
     padding: 12px 12px 10px;
     gap: 12px;
   }
-  .panel-left { max-height: 280px; }
-  .lib-grid {
+  body.mobile-gate-dismissed .panel-left { max-height: 280px; }
+  body.mobile-gate-dismissed .lib-grid {
     grid-template-columns: repeat(5, 1fr);
     gap: 10px;
   }
-  .canvas { min-height: 320px; }
-  .app-header { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
-  .app-subtitle { display: none; }
-  .header-left { flex-wrap: wrap; }
+  body.mobile-gate-dismissed .canvas { min-height: 320px; }
+  body.mobile-gate-dismissed .app-header .header-inner {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  body.mobile-gate-dismissed .app-subtitle { display: none; }
 }
 
 /* =============================================================

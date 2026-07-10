@@ -672,8 +672,24 @@
     }
   }
 
+  /* =========================================================
+   * 10. Mobile gate — phone breakpoint only (Continue anyway)
+   * ========================================================= */
+  function initMobileGate() {
+    var anyway = document.getElementById("mobile-gate-anyway");
+    if (!anyway) return;
+    anyway.addEventListener("click", function () {
+      document.body.classList.add("mobile-gate-dismissed");
+      // Ensure stacked layout can scroll after unlock
+      try {
+        window.scrollTo(0, 0);
+      } catch (e) {}
+    });
+  }
+
   /* ---------- init ---------- */
   renderLibrary();
   renderTags();
   initHeaderCollapse();
+  initMobileGate();
 })();

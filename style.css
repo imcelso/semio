@@ -158,8 +158,36 @@ body:not(.landing) {
   cursor: grab;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  /* pan-y keeps library scrollable; drag code preventDefault once past threshold */
+  touch-action: pan-y;
   transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+/* Floating emoji while dragging from library → canvas (tablet + desktop) */
+.lib-drag-ghost {
+  position: fixed;
+  z-index: 200;
+  width: 58px;
+  height: 58px;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  opacity: .92;
+  filter: drop-shadow(0 4px 12px rgba(20, 26, 38, .22));
+  will-change: left, top;
+}
+body.is-library-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+body.is-library-dragging .library {
+  /* keep list from rubber-banding while a drag is active */
+  overflow: hidden;
 }
 .lib-item:hover {
   border-color: var(--accent);
@@ -825,19 +853,25 @@ body.landing {
   overflow-y: auto;
 }
 
-/* ----- Photo: grows with viewport; soft left edge via mask ----- */
+/*
+ * Photo: always edge-to-edge in its frame (top + bottom).
+ * Desktop / tablet landscape: fixed to the viewport so it stays
+ * full-height while copy scrolls. Horizontal mask only (no bottom fade).
+ */
 .lp-visual {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
+  height: 100vh;
+  height: 100dvh;
   /* small screens ~58%, full desktop ~70%+ */
   width: clamp(56%, 18rem + 48vw, 74%);
   z-index: 0;
   overflow: hidden;
   background: #cfd6e0;
   pointer-events: none;
-  /* photo itself fades in from the left — double soft edge with the white wash */
+  /* soft LEFT edge only — never fade the bottom (that caused a mid-frame edge) */
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -858,15 +892,16 @@ body.landing {
   );
 }
 .lp-photo {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  max-width: none;
   object-fit: cover;
-  object-position: 48% 30%;
-  /* slight zoom only — too high crops faces/table on new photo */
-  transform: scale(1.04);
-  transform-origin: 45% 32%;
-  will-change: transform;
+  object-position: 50% 40%;
+  /* no transform scale — scale() left gray strips at top/bottom on some tablets */
+  transform: none;
 }
 
 /* ----- Copy: solid white under full text column, then soft dissolve ----- */
@@ -927,8 +962,7 @@ body.landing {
     width: clamp(64%, 20rem + 50vw, 78%);
   }
   .lp-photo {
-    transform: scale(1.05);
-    transform-origin: 42% 30%;
+    object-position: 48% 38%;
   }
   .lp-copy {
     background: linear-gradient(
@@ -947,13 +981,15 @@ body.landing {
   }
 }
 
-/* Mid desktop: keep blend open when between tablet and ultrawide */
+/* Mid desktop / tablet landscape: side-by-side, still full viewport height */
 @media (min-width: 961px) and (max-width: 1399px) {
   .lp-visual {
     width: clamp(58%, 12rem + 46vw, 70%);
+    height: 100vh;
+    height: 100dvh;
   }
   .lp-photo {
-    transform: scale(1.04);
+    object-position: 50% 42%;
   }
 }
 
@@ -1073,7 +1109,11 @@ body.landing {
   overflow-wrap: break-word;
 }
 
-/* Narrow: photo on top, soft bottom wash into copy */
+/*
+ * Narrow / tablet portrait: photo on top as a full-bleed band.
+ * Image absolute-fills the band (no bottom mask line). Soft join via
+ * overlay gradient, not by making the photo transparent mid-frame.
+ */
 @media (max-width: 960px) {
   .lp-shell {
     display: flex;
@@ -1083,51 +1123,116 @@ body.landing {
   }
   .lp-visual {
     position: relative;
-    width: 100%;
-    height: min(48vh, 400px);
-    min-height: 260px;
+    top: auto;
+    right: auto;
+    bottom: auto;
     order: -1;
+    width: 100%;
+    /* prefer dynamic viewport units on iPad Safari (dvh last wins if supported) */
+    height: min(52vh, 480px);
+    height: min(52dvh, 480px);
+    min-height: 280px;
+    max-height: none;
+    flex-shrink: 0;
     pointer-events: auto;
-    /* stack: fade bottom of photo instead of left edge */
-    -webkit-mask-image: linear-gradient(
-      180deg,
-      #000 0%,
-      #000 62%,
-      rgba(0, 0, 0, 0.55) 82%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      180deg,
-      #000 0%,
-      #000 62%,
-      rgba(0, 0, 0, 0.55) 82%,
-      transparent 100%
-    );
+    /* reset side mask — full opacity to all edges of the band */
+    -webkit-mask-image: none;
+    mask-image: none;
   }
-  .lp-photo {
-    transform: scale(1.02);
-    transform-origin: 50% 30%;
-    object-position: 50% 28%;
-  }
-  .lp-copy {
-    min-height: auto;
-    padding-right: 0;
+  /* soft blend painted ON TOP of the photo, photo still covers the box */
+  .lp-visual::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    z-index: 1;
+    pointer-events: none;
     background: linear-gradient(
       180deg,
       rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.55) 18px,
-      #ffffff 56px,
+      rgba(255, 255, 255, 0.55) 55%,
       #ffffff 100%
     );
-    margin-top: -48px;
-    padding-top: 8px;
+  }
+  .lp-photo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 35%;
+    transform: none;
+  }
+  .lp-copy {
+    position: relative;
+    z-index: 1;
+    min-height: auto;
+    padding-right: 0;
+    margin-top: 0;
+    padding-top: 0;
+    background: #ffffff;
   }
   .lp-main {
     max-width: 640px;
     margin: 0 auto;
-    padding: 12px 22px 32px;
+    padding: 16px 22px 32px;
   }
-  .lp-nav { padding: 4px 22px 0; }
+  .lp-nav { padding: 12px 22px 0; }
+}
+
+/* Short landscape tablets: keep side-by-side full-height photo */
+@media (max-width: 960px) and (orientation: landscape) and (min-height: 400px) {
+  .lp-shell {
+    display: block;
+    position: relative;
+    min-height: 100dvh;
+    min-height: 100vh;
+  }
+  .lp-visual {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    order: 0;
+    width: min(52%, 420px);
+    height: 100dvh;
+    height: 100vh;
+    min-height: 0;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.2) 10%,
+      #000 32%,
+      #000 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.2) 10%,
+      #000 32%,
+      #000 100%
+    );
+  }
+  .lp-visual::after { display: none; }
+  .lp-copy {
+    min-height: 100dvh;
+    min-height: 100vh;
+    background: linear-gradient(
+      90deg,
+      #ffffff 0,
+      #ffffff min(48%, 22rem),
+      rgba(255, 255, 255, 0.9) min(58%, 28rem),
+      rgba(255, 255, 255, 0.4) min(72%, 34rem),
+      transparent 88%
+    );
+  }
+  .lp-main {
+    max-width: min(28rem, 48vw);
+    padding: 20px 20px 28px 24px;
+  }
 }
 
 @media (max-width: 720px) {

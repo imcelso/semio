@@ -36,6 +36,8 @@
 
   /* =========================================================
    * 1. Render the symbol library (left column)
+   * Pointer drag works on tablet; HTML5 DnD kept for desktop.
+   * Tap still places near centre when not dragged.
    * ========================================================= */
   function renderLibrary() {
     SYMBOL_LIBRARY.categories.forEach(function (cat) {
@@ -59,15 +61,21 @@
         el.title = item.label; // tooltip only; no visible text label
         el.innerHTML = '<span class="emoji">' + item.emoji + "</span>";
 
-        // HTML5 drag
+        // HTML5 drag (desktop)
         el.addEventListener("dragstart", function (e) {
           e.dataTransfer.setData("text/symbol-id", item.id);
           e.dataTransfer.effectAllowed = "copy";
         });
-        // click-to-place (accessible alternative to drag)
+        // tap-to-place when user did not drag
         el.addEventListener("click", function () {
+          if (el._suppressClick) {
+            el._suppressClick = false;
+            return;
+          }
           addToken(item.id);
         });
+
+        enableLibraryPointerDrag(el, item);
 
         grid.appendChild(el);
       });
@@ -76,8 +84,108 @@
     });
   }
 
+  /**
+   * Tablet-friendly: press + drag from library onto canvas.
+   * Ghost follows finger; drop places at point; cancel if released outside.
+   */
+  function enableLibraryPointerDrag(el, item) {
+    var startX = 0, startY = 0, active = false, dragging = false;
+    var ghost = null, pointerId = null;
+
+    function ghostAt(clientX, clientY) {
+      if (!ghost) return;
+      ghost.style.left = clientX + "px";
+      ghost.style.top = clientY + "px";
+    }
+
+    function ensureGhost() {
+      if (ghost) return;
+      ghost = document.createElement("div");
+      ghost.className = "lib-drag-ghost";
+      ghost.textContent = item.emoji;
+      ghost.setAttribute("aria-hidden", "true");
+      document.body.appendChild(ghost);
+      document.body.classList.add("is-library-dragging");
+    }
+
+    function clearGhost() {
+      if (ghost) {
+        ghost.remove();
+        ghost = null;
+      }
+      document.body.classList.remove("is-library-dragging");
+      canvasEl.classList.remove("drag-over");
+    }
+
+    function pointInCanvas(clientX, clientY) {
+      var r = canvasEl.getBoundingClientRect();
+      return clientX >= r.left && clientX <= r.right &&
+             clientY >= r.top && clientY <= r.bottom;
+    }
+
+    el.addEventListener("pointerdown", function (e) {
+      // left button / touch / pen only
+      if (e.button != null && e.button !== 0) return;
+      active = true;
+      dragging = false;
+      pointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    el.addEventListener("pointermove", function (e) {
+      if (!active || e.pointerId !== pointerId) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD + 4) return;
+        dragging = true;
+        el._suppressClick = true;
+        ensureGhost();
+      }
+      ghostAt(e.clientX, e.clientY);
+      if (pointInCanvas(e.clientX, e.clientY)) {
+        canvasEl.classList.add("drag-over");
+      } else {
+        canvasEl.classList.remove("drag-over");
+      }
+      // avoid scrolling the library while dragging a symbol
+      e.preventDefault();
+    });
+
+    function endPointer(e) {
+      if (!active || (e.pointerId != null && e.pointerId !== pointerId)) return;
+      active = false;
+      try { el.releasePointerCapture(pointerId); } catch (err) {}
+      pointerId = null;
+
+      if (dragging) {
+        el._suppressClick = true;
+        if (pointInCanvas(e.clientX, e.clientY)) {
+          var rect = canvasEl.getBoundingClientRect();
+          var half = TOKEN_FALLBACK / 2;
+          addToken(
+            item.id,
+            e.clientX - rect.left - half,
+            e.clientY - rect.top - half
+          );
+        }
+        clearGhost();
+        dragging = false;
+        // swallow the synthetic click that follows touch
+        setTimeout(function () { el._suppressClick = false; }, 0);
+        return;
+      }
+      clearGhost();
+    }
+
+    el.addEventListener("pointerup", endPointer);
+    el.addEventListener("pointercancel", endPointer);
+  }
+
   /* =========================================================
-   * 2. Canvas drop handling
+   * 2. Canvas drop handling (HTML5 DnD — desktop)
    * ========================================================= */
   canvasEl.addEventListener("dragover", function (e) {
     e.preventDefault();
